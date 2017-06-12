@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 
+
 #define error_exit(msg, ret) do {																			\
 								printf("%s doesn't work correctly, error: %d\n", msg, GetLastError());		\
 								Sleep(2000);																\

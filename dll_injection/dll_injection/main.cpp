@@ -1,7 +1,15 @@
+#define _CRTDBG_MAP_ALLOC  
+#include <stdlib.h>  
+#include <crtdbg.h> 
+
 #include "for_main.h"
 #include "find_kernel32.h"
 #include "time.h"
+#include "patching.h"
 
+
+
+#define APP_PATH	       "D:\\For_programm\\system prog 8 sem\\lab_2\\simple_program\\x64\\Debug\\simple_program.exe"
 #define DLL_PATH	       "D:\\For_programm\\system prog 8 sem\\lab_2\\MyFirstDLL\\x64\\Debug\\myFirstDLL.dll"
 #define KERNEL32DLL_NAME   "kernel32.dll"
 // x32 app
@@ -53,9 +61,11 @@ unsigned char byte_code_myLoadLibrary[] = {
 	0xFF, 0xE0					// jmp         rax 
 };
 
+
 int main()
 {
-	
+//	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
 	//printf("myLoadLibrary %s\n", myLoadLibrary(&info) ? "Error" : "OK");
 
 	STARTUPINFO cif;
@@ -63,12 +73,28 @@ int main()
 
 	PROCESS_INFORMATION pi;
 	if (!CreateProcess(TASK_MGR, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, TASK_DIR_MGR, &cif, &pi))
+	//if (!CreateProcess(APP_PATH, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &cif, &pi))
 		error_exit("CreateProcess", 1);
 
-	Sleep(10);
+	PatchInfo patch_info;
+
+	if (make_patch_x64(pi, &patch_info))
+		error_exit("make_patch_x64", 1);
+
+	if (ResumeThread(pi.hThread) == -1)
+		error_exit("ResumeThread", 1);
+	
+	Sleep(200);
+
 	void *remoteKernel32 = FindKernel32Address_x64(pi);
 	if (remoteKernel32 == NULL)
 		error_exit("FindKernel32AddressX86", 1);
+
+	if (SuspendThread(pi.hThread) == -1)
+		error_exit("ResumeThread", 1);
+
+	if (unmake_patch_x64(pi, patch_info))
+		error_exit("unmakePatch_x86", 1);
 
 	// load my lib
 	HMODULE hKernel32 = GetModuleHandle(KERNEL32DLL_NAME);
@@ -124,5 +150,7 @@ int main()
 		error_exit("waitGetExitCodeAndCloseThread", 1);
 
 	printf("Program succesfully finished.\n");
+
+//	_CrtDumpMemoryLeaks();
 	return 0;
 }
