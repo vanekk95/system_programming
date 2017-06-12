@@ -1,43 +1,14 @@
-#include "for_main.h"
+#include "main_header.h"
 #include "find_kernel32.h"
-#include "time.h"
 #include "patching.h"
 
 
-
-#define APP_PATH	       "D:\\For_programm\\system prog 8 sem\\lab_2\\simple_program\\x64\\Debug\\simple_program.exe"
-#define DLL_PATH	       "D:\\For_programm\\system prog 8 sem\\lab_2\\MyFirstDLL\\x64\\Debug\\myFirstDLL.dll"
-#define KERNEL32DLL_NAME   "kernel32.dll"
-// x32 app
-#define WARCRAFT_PATH      "D:\\Game\\Warcraft III\\Frozen Throne.exe"
-#define WARCRAFT_DIR_PATH  "D:\\Game\\Warcraft III"
-#define MOST_WANT_PATH     "D:\\Game\\NFS Most Wanted\\directory\\Need For Speed - Most Wanted\\speed.exe"
-#define MOST_WANT_DIR_PATH "D:\\Game\\NFS Most Wanted\\directory\\Need For Speed - Most Wanted"
-// x64 app
-#define TASK_MGR           "C:\\Windows\\System32\\Taskmgr.exe"
-#define TASK_DIR_MGR       "C:\\Windows\\System32"
-
-#define SIZE_PATH 512
-#define GetCurrentDir _getcwd
-
-#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
-
-
-typedef HMODULE  (*LoadLibrary_t)(
-	_In_ LPCSTR lpLibFileName
-);
-typedef DWORD (*GetLastError_t)(VOID);
-
-struct for_shellcode_t {
-	LoadLibrary_t LoadLibrary;
-	GetLastError_t GetLastError;
-	char path_to_my_dll[SIZE_PATH];
-};
 __declspec(noinline)
 int myLoadLibrary(for_shellcode_t *info) {
 	HMODULE hModule = info->LoadLibrary(info->path_to_my_dll);
 	return info->GetLastError();
 }
+
 unsigned char byte_code_myLoadLibrary[] = { 
 	0x53,						// push        rbx
 	0x48, 0x83, 0xEC, 0x20,		// sub         rsp,20h

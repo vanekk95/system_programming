@@ -140,12 +140,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ExecutionRemoteThread.cpp" />
+    <ClCompile Include="find_kernel32.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="ManagerProcMemory.cpp" />
+    <ClCompile Include="patching.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ExecutionRemoteThread.h" />
     <ClInclude Include="find_kernel32.h" />
-    <ClInclude Include="for_main.h" />
+    <ClInclude Include="main_header.h" />
     <ClInclude Include="ManagerProcMemory.h" />
     <ClInclude Include="patching.h" />
   </ItemGroup>
