@@ -1,7 +1,3 @@
-#define _CRTDBG_MAP_ALLOC  
-#include <stdlib.h>  
-#include <crtdbg.h> 
-
 #include "for_main.h"
 #include "find_kernel32.h"
 #include "time.h"
@@ -24,15 +20,8 @@
 #define SIZE_PATH 512
 #define GetCurrentDir _getcwd
 
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
-int check_file_path(char *path) {
-	OFSTRUCT file_struct;
-	HFILE hFile = OpenFile(DLL_PATH, &file_struct, 0);
-	if (hFile == HFILE_ERROR)
-		error_exit("OpenFile", 1);
-	//CloseFile(hFile);
-	return 0;
-}
 
 typedef HMODULE  (*LoadLibrary_t)(
 	_In_ LPCSTR lpLibFileName
@@ -64,9 +53,7 @@ unsigned char byte_code_myLoadLibrary[] = {
 
 int main()
 {
-//	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-
-	//printf("myLoadLibrary %s\n", myLoadLibrary(&info) ? "Error" : "OK");
+	BUILD_BUG_ON(SIZE_PATH < sizeof(DLL_PATH));
 
 	STARTUPINFO cif;
 	ZeroMemory(&cif, sizeof(STARTUPINFO));
@@ -115,33 +102,18 @@ int main()
 	for_shellcode_t info;
 	info.GetLastError = remoteGetLastError;
 	info.LoadLibrary = remoteLoadLibraryA;
-	strcpy(info.path_to_my_dll, DLL_PATH);
+	strncpy(info.path_to_my_dll, DLL_PATH, sizeof(DLL_PATH));
 
-	// put arg for shellcode
-	ManagerProcMemory procMemory(pi.hProcess);
-	void *info_for_shellcode;
-	if (!(info_for_shellcode = procMemory.alloc(sizeof(for_shellcode_t))))
-		error_exit("AllocProcessMemory", 1);
-	if (procMemory.write(info_for_shellcode, &info, sizeof(for_shellcode_t)))
-		error_exit("WriteProcessMemory", 1);
+	ThreadInfo thread_info;
+	thread_info.code = byte_code_myLoadLibrary;
+	thread_info.size_code = sizeof(byte_code_myLoadLibrary);
+	thread_info.arg = (unsigned char *)&info;
+	thread_info.size_arg = sizeof(info);
 
-	// put code for shellcode
-	void *remote_shellcode;
-	if (!(remote_shellcode = procMemory.alloc(sizeof(byte_code_myLoadLibrary))))
-		error_exit("AllocProcessMemory", 1);
-	if (procMemory.write(remote_shellcode, byte_code_myLoadLibrary, sizeof(byte_code_myLoadLibrary)))
-		error_exit("WriteProcessMemory", 1);
+	if (executionRemoteThread(pi, &thread_info))
+		error_exit("executionRemoteThread", 1);
 
-	// create remote thread for LoadLibrary
-	HANDLE hThread = CreateRemoteThread(pi.hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)remote_shellcode, info_for_shellcode, 0, NULL);
-	if (!hThread)
-		error_exit("CreateRemoteThread[LoadLibrary]", 1);
-
-	DWORD error_code;
-	if (waitGetExitCodeAndCloseHandle(hThread, (LPDWORD)(&error_code)))
-		error_exit("waitGetExitCodeAndCloseHandle", 1);
-
-	printf("error_code = 0x%x\n", error_code);
+	printf("error_code = 0x%x\n", thread_info.ret_val);
 
 	if (ResumeThread(pi.hThread) == -1)
 		error_exit("ResumeThread", 1);
@@ -150,7 +122,6 @@ int main()
 		error_exit("waitGetExitCodeAndCloseThread", 1);
 
 	printf("Program succesfully finished.\n");
-
-//	_CrtDumpMemoryLeaks();
+	
 	return 0;
 }

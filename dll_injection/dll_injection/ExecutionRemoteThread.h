@@ -19,31 +19,47 @@ int waitGetExitCodeAndCloseHandle(HANDLE hThread, LPDWORD pRetVal) {
 	return 0;
 }
 
-void * executionRemoteThread(PROCESS_INFORMATION pi, unsigned char *byte_code, SIZE_T size_byte_code) {
+struct ThreadInfo {
+	unsigned char *code;
+	SIZE_T size_code;
+	unsigned char *arg;
+	SIZE_T size_arg;
+	DWORD ret_val;
+};
+
+
+int executionRemoteThread(PROCESS_INFORMATION pi, ThreadInfo *info) {
 	ManagerProcMemory procMemory(pi.hProcess);
 
-	void *remote_byte_code = procMemory.alloc(size_byte_code);
+	void *remote_byte_code = procMemory.alloc(info->size_code);
 	if (!remote_byte_code)
-		error_exit("VirtualAllocEx", NULL);
+		error_exit("VirtualAllocEx", 1);
 
-	if (procMemory.write(remote_byte_code, byte_code, size_byte_code))
-		error_exit("WriteProcessMemory", NULL);
+	if (procMemory.write(remote_byte_code, info->code, info->size_code))
+		error_exit("WriteProcessMemory", 1);
 
-	void *for_ret_val = procMemory.alloc(sizeof(void *));
-	if (!for_ret_val)
-		error_exit("VirualAllocEx", NULL);
+	void *remote_arg = procMemory.alloc(info->size_arg);
+	if (!remote_arg)
+		error_exit("VirualAllocEx", 1);
 
-	HANDLE hThread = CreateRemoteThread(pi.hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)remote_byte_code, for_ret_val, 0, NULL);
+	if (procMemory.write(remote_arg, info->arg, info->size_arg))
+		error_exit("WriteProcessMemory", 1);
+
+	HANDLE hThread = CreateRemoteThread(pi.hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)remote_byte_code, remote_arg, 0, NULL);
 	if (!hThread)
-		error_exit("CreateRemoteThread", NULL);
+		error_exit("CreateRemoteThread", 1);
 
-	void *ret_val = NULL;
+	if (waitGetExitCodeAndCloseHandle(hThread, &info->ret_val))
+		error_exit("waitGetExitCodeAndCloseHandle", 1);
 
-	if (waitGetExitCodeAndCloseHandle(hThread, NULL))
-		error_exit("waitGetExitCodeAndCloseHandle", NULL);
+	if (procMemory.read(remote_arg, info->arg, info->size_arg))
+		error_exit("readProcessMemory", 1);
 
-	if (procMemory.read(for_ret_val, &ret_val, sizeof(void *)))
-		error_exit("readProcessMemory", NULL);
+	if (procMemory.free_mem(remote_byte_code))
+		error_exit("VirtualFreeEx", 1);
 
-	return ret_val;
+	if (procMemory.free_mem(remote_arg))
+		error_exit("VirtualFreeEx", 1);
+
+	return 0;
 }

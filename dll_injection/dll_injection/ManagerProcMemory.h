@@ -22,6 +22,10 @@ public:
 		return VirtualAllocEx(hProcess, NULL, size,
 			MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 	}
+
+	int free_mem(LPVOID lpAddress) {
+		return !VirtualFreeEx(hProcess, lpAddress, 0, MEM_RELEASE);
+	}
 private:
 	HANDLE hProcess;
 };

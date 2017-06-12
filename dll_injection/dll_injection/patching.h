@@ -23,7 +23,6 @@ void printPEandOptionalHeders(IMAGE_NT_HEADERS PeHeader) {
 	printf("pOptionalHeader\n");
 	printf("\tAddressOfEntryPoint = %u\n", PeHeader.OptionalHeader.AddressOfEntryPoint);
 	printf("\tBaseOfCode = %u\n", PeHeader.OptionalHeader.BaseOfCode);
-	//	printf("\tBaseOfData = %u\n", PeHeader.OptionalHeader.BaseOfData);
 	printf("\tFileAlignment = %u\n", PeHeader.OptionalHeader.FileAlignment);
 	printf("\tSizeOfImage = %u\n", PeHeader.OptionalHeader.SizeOfImage);
 
@@ -48,9 +47,17 @@ struct PatchInfo {
 
 
 int make_patch_x64(PROCESS_INFORMATION pi, PatchInfo *info) {
-	unsigned char *base = (unsigned char *)executionRemoteThread(pi, get_base_image, sizeof(get_base_image));
-	if (base == NULL)
-		return 1;
+	unsigned char *base;
+	ThreadInfo thread_info;
+
+	thread_info.code = get_base_image;
+	thread_info.size_code = sizeof(get_base_image);
+	thread_info.arg = (unsigned char *)&base;
+	thread_info.size_arg = sizeof(base);
+
+	if (executionRemoteThread(pi, &thread_info))
+		error_exit("executionRemoteThread", 1);
+
 	ManagerProcMemory procMemory(pi.hProcess);
 	IMAGE_DOS_HEADER dosHeader;
 
@@ -78,14 +85,11 @@ int make_patch_x64(PROCESS_INFORMATION pi, PatchInfo *info) {
 		printf("0x%x ", info->origin_instr[i]);
 	printf("\n");
 
-	printf("1\n");
 	if (procMemory.write(addrOfEntryPoint, loop, sizeof(loop)))
 		error_exit("WriteProcessMemory", 1);
 
-	printf("2\n");
 	info->entryPoint = addrOfEntryPoint;
 	info->context.ContextFlags = CONTEXT_FULL;
-//	printf("make patch:\t context->rip = %p\n", info->context.Rip); 
 	if (!GetThreadContext(pi.hThread, &info->context))
 		error_exit("GetThreadContext", 1);
 	printf("make patch:\t context->rip = %p\n", info->context.Rip); 
@@ -99,7 +103,6 @@ int unmake_patch_x64(PROCESS_INFORMATION pi, PatchInfo info) {
 
 	CONTEXT context;
 	context.ContextFlags = CONTEXT_FULL;
-//	printf("unmake patch:\t context->rip = %p\n", context.Rip);
 	if (!GetThreadContext(pi.hThread, &context))
 		error_exit("WriteProcessMemory", 1);
 	printf("unmake patch:\t context->rip = %p\n", context.Rip);
