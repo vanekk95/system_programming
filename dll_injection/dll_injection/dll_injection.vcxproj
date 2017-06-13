@@ -145,6 +145,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ManagerProcMemory.cpp" />
     <ClCompile Include="patching.cpp" />
+    <ClCompile Include="Shellcode.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ExecutionRemoteThread.h" />
@@ -152,6 +153,7 @@
     <ClInclude Include="main_header.h" />
     <ClInclude Include="ManagerProcMemory.h" />
     <ClInclude Include="patching.h" />
+    <ClInclude Include="Shellcode.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
